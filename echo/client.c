@@ -35,7 +35,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* echo 서버의 소켓주소 구조체 작성 */
-    bzero((char *)&server_addr, sizeof(server_addr)); // 구조체 변수의 메모리 영역을 0으로 채워서 초기화 한다. 유사 함수로는 memset()이 있다.
+    // 구조체 변수의 메모리 영역을 0으로 채워서 초기화 한다. 유사 함수로는 memset()이 있다.
+    bzero((char *)&server_addr, sizeof(server_addr)); 
     
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(haddr);
