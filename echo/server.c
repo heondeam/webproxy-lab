@@ -52,21 +52,21 @@ int main(int argc, char *argv[]) {
     /* 소켓을 수동 대기모드로 세팅 */ 
     listen(server_fd, 5); 
 
-    printf("Server : waiting connection request.\n"); 
-    len = sizeof(client_addr); 
-
-    /* 연결요청을 기다림 */ 
-    client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &len); 
-
-    if(client_fd < 0) { 
-        printf("Server: accept failed.\n"); 
-        return 0; 
-    }else {
-        printf("Server : client connected.\n"); 
-    }
-
     /* iterative echo 서비스 수행 */ 
     while(1) { 
+        printf("Server : waiting connection request.\n"); 
+        len = sizeof(client_addr); 
+
+        /* 연결요청을 기다림 */ 
+        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &len); 
+
+        if(client_fd < 0) { 
+            printf("Server: accept failed.\n"); 
+            return 0; 
+        }
+
+        printf("Server : client connected.\n"); 
+
         len_out = read(client_fd, buf, sizeof(buf)); 
         write(client_fd, buf, len_out); 
         // close(client_fd); 

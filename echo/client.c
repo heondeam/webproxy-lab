@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* 키보드 입력을 받음 */	
-    // printf("Input any string : ");
 
+    printf("Input any string : ");
     while (fgets(buf, BUF_LEN, stdin) != NULL) {
         buf[128] = '\0'; 
         len_out = strlen(buf); 
@@ -74,9 +74,10 @@ int main(int argc, char *argv[]) {
         }
 
         printf("%s", buf); 
+        close(s); 
     }
 
-    // close(s); 
+    close(s); 
 
     return 0;
 }
