@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
   // Open_listenfd 함수를 호출해서 listen 소켓을 오픈하고 fd를 리턴받는다. 
   // 인자로 포트번호 넘겨줌
   listenfd = Open_listenfd(argv[1]);
+
+  printf("Server is listening...\n");
   
   // 무한 서버 루프 실행
   while (1) {
@@ -54,7 +56,7 @@ int main(int argc, char **argv) {
 
     // HTTP 트랜잭션이 수행된 후 자신 쪽의 end-point 를 닫는다.
     Close(connfd);  // line:netp:tiny:close
-    printf("Connect closed!!!!\n\n");
+    printf("Connect closed!!!!\n");
   }
 }
 
@@ -90,6 +92,10 @@ void read_requesthdrs(rio_t *rp) {
 
   Rio_readlineb(rp, buf, MAXLINE);
   
+  /* 
+      int strcmp(const char* str1, const char* str2)
+      str1과 str2 를 비교해서 완전히 같다면 0을 반환하고 다르다면 음수 또는 양수를 반환한다.
+   */
   while(strcmp(buf, "\r\n")) {
     Rio_readlineb(rp, buf, MAXLINE);
     printf("%s", buf);
@@ -116,7 +122,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
 
     // 만약 uri가 "/" 로 끝난다면 기본 파일 이름을 추가한다.
     if(uri[strlen(uri) - 1] == '/') {
-      strcat(filename, "home.html");
+      strcat(filename, "index.html");
     }
 
     return 1;
@@ -153,6 +159,8 @@ void get_filetype(char *filename, char *filetype) {
     strcpy(filetype, "image/png");
   }else if(strstr(filename, ".jpg")) {
     strcpy(filetype, "image/jpeg");
+  }else if(strstr(filename, ".mpg")) {
+    strcpy(filetype, "video/mpg");
   }else {
     strcpy(filetype, "text/plain");
   }
@@ -163,7 +171,7 @@ void get_filetype(char *filename, char *filetype) {
  * 정적 컨텐츠 처리 함수
 */
 void serve_static(int fd, char *filename, int filesize) {
-  /* html, 무형식 텍스트, GIF, PNG, JPEG의 정적 컨텐츠 지원 */
+  /* html, 무형식 텍스트, GIF, PNG, JPEG, mpg의 정적 컨텐츠 지원 */
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
@@ -238,11 +246,12 @@ void doit(int fd) {
     return;
   }
 
-  // GET 요청이 맞다면 요청을 읽어온다.
   read_requesthdrs(&rio);
 
   /* GET 요청으로부터 받은 URI를 분석한다. */
   is_static = parse_uri(uri, filename, cgiargs);
+
+  printf("\n\nClient HTTP version is %s\n\n", version);
 
   if(stat(filename, &sbuf) < 0) {
     clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file");
@@ -261,6 +270,7 @@ void doit(int fd) {
 
     // 권한이 있을 경우 처리한다.
     serve_static(fd, filename, sbuf.st_size);
+
   }else {
     /* 동적 컨텐츠를 요청 받았을 때 */
     if(!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
