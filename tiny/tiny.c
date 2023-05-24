@@ -11,7 +11,7 @@
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
-void serve_static(int fd, char *filename, int filesize);
+void serve_static(int fd, char *filename, int filesize, char *method);
 void serve_dynamic(int fd, char *filename, char *cgiargs , char *method);
 void get_filetype(char *filename, char *filetype);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
@@ -90,11 +90,12 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
     strcat(filename, uri);
 
 
-    // 만약 uri가 "/" 로 끝난다면 filename에 index.html 을 추가한다.
+    // 만약 uri가 "/" 로 끝난다면 filename에 index.html을 추가한다.
     if(uri[strlen(uri) - 1] == '/') {
       strcat(filename, "index.html");
     }
 
+    // 만약 uri가 "/adder" 라면 filename에 adder.html을 추가한다. 
     if(strstr(uri, "/adder")) {
       strcat(filename, ".html");
     }
@@ -153,7 +154,7 @@ void get_filetype(char *filename, char *filetype) {
  * @param filename 제공할 정적 파일의 경로, 이름
  * @param filesize 제공할 파일의 크기를 나타내는 정수값
 */
-void serve_static(int fd, char *filename, int filesize) {
+void serve_static(int fd, char *filename, int filesize, char *method) {
   /* html, 무형식 텍스트, GIF, PNG, JPEG, MPG의 정적 컨텐츠 지원 */
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
@@ -177,27 +178,31 @@ void serve_static(int fd, char *filename, int filesize) {
   printf("Response headers:\n");
   printf("%s", buf);
 
-  /* send response body to client */
+  // HEAD 메서드는 응답 헤더까지만 처리한다.
 
-  // 응답 파일을 열고 해당 파일 디스크립터를 변수에 저장함.
-  srcfd = Open(filename, O_RDONLY, 0);
+  if(!strcasecmp(method, "GET")) {
+    /* send response body to client */
 
-  /* Mmap & Munmap 사용 */
-  // srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
-  // Munmap(srcp, filesize);
+    // 응답 파일을 열고 해당 파일 디스크립터를 변수에 저장함.
+    srcfd = Open(filename, O_RDONLY, 0);
 
-  // Malloc을 사용해서 현재 filesize만큼의 메모리를 할당받아 srcp에 시작 포인터를 저장한다.
-  srcp = (char *)Malloc(filesize);
+    /* Mmap & Munmap 사용 */
+    // srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+    // Munmap(srcp, filesize);
 
-  // 파일을 읽는다.
-  Rio_readn(srcfd, srcp, filesize);
-  // 파일을 보낸다.
-  Rio_writen(fd, srcp, filesize);
-  // 연결을 종료한다.
-  Close(srcfd);
+    // Malloc을 사용해서 현재 filesize만큼의 메모리를 할당받아 srcp에 시작 포인터를 저장한다.
+    srcp = (char *)Malloc(filesize);
 
-  // 할당된 메모리를 해제한다.
-  Free(srcp);
+    // 파일을 읽는다.
+    Rio_readn(srcfd, srcp, filesize);
+    // 파일을 보낸다.
+    Rio_writen(fd, srcp, filesize);
+    // 연결을 종료한다.
+    Close(srcfd);
+
+    // 할당된 메모리를 해제한다.
+    Free(srcp);
+  }
 };
 
 /**
@@ -269,7 +274,13 @@ void doit(int fd) {
   // 요청 라인에서 method, uri, http version 정보를 각각 버퍼 변수에 저장한다.
   sscanf(buf, "%s %s %s", method, uri, version);
 
-  // 요청 라인 읽고 출력
+  if(strcasecmp(method, "GET") != 0 && strcasecmp(method, "HEAD") != 0) {
+    clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
+
+    return;
+  }
+
+  // 요청 라인 읽 고 출력
   read_requesthdrs(&rio);
 
   /* Parse URL from GET request */
@@ -295,7 +306,7 @@ void doit(int fd) {
     }
 
     // 문제 없다면 정적 컨텐츠 처리
-    serve_static(fd, filename, sbuf.st_size);
+    serve_static(fd, filename, sbuf.st_size, method);
   }else {
     /* 동적 컨텐츠의 처리 */
 
@@ -318,7 +329,6 @@ void doit(int fd) {
 */
 int main(int argc, char **argv) {
   /* argc = 2, argv[0] = tiny, argv[1] = 3000 */
-
   int listenfd, connfd;
   char hostname[MAXLINE], port[MAXLINE];
   socklen_t clientlen;
